@@ -1,35 +1,33 @@
 # OpenClaw OpenAI Bridge
 
-Bridge, die OpenClaw als OpenAI-kompatible API verfügbar macht. Ermöglicht die Integration von OpenClaw als LLM in **Open WebUI** und **Home Assistant**.
+Bridge, die OpenClaw als OpenAI-kompatible API verfügbar macht. Ermöglicht die Integration von OpenClaw als LLM in **Open WebUI**, **Home Assistant** oder jeden anderen OpenAI-API-Client.
 
 ## ✨ Features
 
 - ✅ **OpenAI-kompatible API** (`/v1/chat/completions`)
 - ✅ **Streaming Support** (SSE - Server-Sent Events)
 - ✅ **Multimodal** (Bilder-Upload & Analyse)
-- ✅ **Session Management** (einfach & sauber)
-- ✅ **macOS LaunchAgent** (permanent im Hintergrund)
+- ✅ **Smart Chunking** (keine gebrochenen Wörter)
+- ✅ **Ephemeral Sessions** (keine Context-Akkumulation)
+- ✅ **macOS LaunchAgent / Linux systemd** (permanent)
 - ✅ **Home Assistant Integration** (mit `hass_local_openai_llm`)
 - ✅ **Open WebUI Integration** (als Custom LLM)
-- ✅ **Smart Chunking** (keine gebrochenen Wörter)
-- ✅ **Fixed Session IDs** (Context über Anfragen hinweg)
 
 ## 📋 Voraussetzungen
 
-- macOS (oder Linux mit systemd)
+- macOS (12+) oder Linux mit systemd
 - Python 3.10+
 - OpenClaw mit Gateway (port 18789)
-- Open WebUI (optional)
-- Home Assistant (optional)
+- Open WebUI oder Home Assistant (optional)
 
 ## 🚀 Installation
 
 ### 1. Bridge Script herunterladen
 
 ```bash
-# Bridge Script nach ~/.openclaw/workspace/scripts/ kopieren
-mkdir -p ~/.openclaw/workspace/scripts/openclaw-openai-bridge
-cp openai-openclaw-bridge-streaming.py ~/.openclaw/workspace/scripts/openclaw-openai-bridge/
+# Repository klonen
+git clone https://github.com/maglat/openclaw-openai-bridge.git
+cd openclaw-openai-bridge
 ```
 
 ### 2. Konfiguration anpassen
@@ -38,21 +36,32 @@ cp openai-openclaw-bridge-streaming.py ~/.openclaw/workspace/scripts/openclaw-op
 
 ```python
 CONFIG = {
-    "port": 9000,              # Port der Bridge
-    "host": "192.168.178.5",   # IP des Mac Mini (lokal!)
-    "api_key": "seibot",       # Optional: API Key für Authentifizierung
-    "session_prefix": "ha-bridge",  # Session Prefix
-    "log_file": "/Users/elonseibot/.openclaw/workspace/logs/openclaw-openai-bridge-streaming.log"
+    "port": 9000,                    # Port der Bridge
+    "host": "192.168.1.XXX",         # IP des Mac Mini (lokal!)
+    "log_file": "/path/to/openclaw-openai-bridge-streaming.log",
+    "api_key": None,                 # Optional: API Key für Auth
+    "session_prefix": "openclaw",     # Session Prefix
+    "timeout": 120,                  # Timeout in Sekunden
 }
 ```
 
-> ⚠️ **Wichtig:** `host` muss die lokale IP des Mac Mini sein (nicht 127.0.0.1), damit Home Assistant die Bridge erreichen kann!
+> ⚠️ **Wichtig:** `host` muss die lokale IP des Mac Mini sein (nicht 127.0.0.1), damit andere Geräte im Netzwerk die Bridge erreichen können!
+
+**Python Path finden:**
+```bash
+which python3
+# → /opt/homebrew/bin/python3 (macOS)
+# → /usr/bin/python3 (Linux)
+```
 
 ### 3. LaunchAgent einrichten (macOS)
 
 Die LaunchAgent plist startet die Bridge automatisch beim Boot:
 
 ```bash
+# plist anpassen (Pfade!)
+nano com.openclaw.openai-bridge.plist
+
 # LaunchAgent installieren
 cp com.openclaw.openai-bridge.plist ~/Library/LaunchAgents/
 
@@ -61,14 +70,42 @@ launchctl load ~/Library/LaunchAgents/com.openclaw.openai-bridge.plist
 launchctl start com.openclaw.openai-bridge
 ```
 
-### 4. Status prüfen
+### 4. Linux systemd (alternative)
 
 ```bash
-# Ist die Bridge aktiv?
-ps aux | grep "openai-openclaw-bridge"
+# Service file erstellen
+sudo nano /etc/systemd/system/openclaw-openai-bridge.service
 
-# Logs prüfen
-tail -f ~/.openclaw/workspace/logs/openclaw-openai-bridge-streaming.log
+# Inhalt:
+# [Unit]
+# Description=OpenClaw OpenAI Bridge
+# After=network.target
+
+# [Service]
+# ExecStart=/usr/bin/python3 /path/to/openai-openclaw-bridge-streaming.py
+# WorkingDirectory=/path/to/openclaw-openai-bridge
+# Restart=always
+
+# [Install]
+# WantedBy=multi-user.target
+
+# Starten
+sudo systemctl enable openclaw-openai-bridge
+sudo systemctl start openclaw-openai-bridge
+```
+
+### 5. Status prüfen
+
+```bash
+# macOS
+ps aux | grep "openai-openclaw-bridge"
+launchctl list | grep openclaw
+
+# Linux
+sudo systemctl status openclaw-openai-bridge
+
+# Logs
+tail -f /path/to/openclaw-openai-bridge-streaming.log
 ```
 
 ## 🔧 Integration
@@ -82,30 +119,30 @@ In Open WebUI Settings → LLM:
 ✅ Custom API
 
 API Provider: OpenAI
-Base URL: http://192.168.178.5:9000/v1
-API Key: seibot
-Model: seibot
+Base URL: http://192.168.1.XXX:9000/v1
+API Key: (leer oder CONFIG["api_key"])
+Model: openclaw
 ```
 
 **Modell einrichten:**
 ```
 Model Name: OpenClaw
-Model ID: seibot
+Model ID: openclaw
 ```
 
 ### Home Assistant
 
 1. **Custom Integration installieren:**
    ```bash
-   # In config/www/ oder via HACS
-   # hass_local_openai_llm Integration
+   # Via HACS oder manuell in config/www/
+   # https://github.com/skye-harris/hass_local_openai_llm
    ```
 
 2. **In HA Settings → LLM:**
    ```
-   API Base URL: http://192.168.178.5:9000/v1
-   API Key: seibot
-   Model: seibot
+   API Base URL: http://192.168.1.XXX:9000/v1
+   API Key: (leer oder CONFIG["api_key"])
+   Model: openclaw
    ```
 
 ## 📡 API Endpoints
@@ -117,7 +154,7 @@ Chat Completion mit Streaming Support.
 **Request:**
 ```json
 {
-  "model": "seibot",
+  "model": "openclaw",
   "messages": [
     {"role": "user", "content": "Hallo"}
   ],
@@ -127,7 +164,7 @@ Chat Completion mit Streaming Support.
 
 **Response (Streaming):**
 ```
-data: {"id":"chatcmpl-xxx","object":"chat.completion.chunk","created":1234567890,"model":"seibot","choices":[{"index":0,"delta":{"role":"assistant","content":"Hi"},"finish_reason":null}]}
+data: {"id":"chatcmpl-xxx","object":"chat.completion.chunk","created":1234567890,"model":"openclaw","choices":[{"index":0,"delta":{"role":"assistant","content":"Hi"},"finish_reason":null}]}
 data: [DONE]
 ```
 
@@ -139,11 +176,20 @@ Listet verfügbare Modelle.
 ```json
 {
   "data": [{
-    "id": "seibot",
+    "id": "openclaw",
     "object": "model",
     "owned_by": "openclaw"
   }]
 }
+```
+
+### GET `/health`
+
+Health Check Endpoint.
+
+**Response:**
+```json
+{"status": "ok", "timestamp": 1234567890}
 ```
 
 ## 🖼️ Multimodal Support (Bilder)
@@ -183,13 +229,20 @@ Open WebUI kann Bilder an die Bridge senden. Die Bridge:
 
 ### Logs prüfen
 ```bash
-tail -f ~/.openclaw/workspace/logs/openclaw-openai-bridge-streaming.log
+tail -f /path/to/openclaw-openai-bridge-streaming.log
 ```
 
 ### Bridge neu starten
+
+**macOS:**
 ```bash
 launchctl stop com.openclaw.openai-bridge
 launchctl start com.openclaw.openai-bridge
+```
+
+**Linux:**
+```bash
+sudo systemctl restart openclaw-openai-bridge
 ```
 
 ### Sessions aufräumen
@@ -201,11 +254,11 @@ openclaw sessions cleanup
 
 ### Bridge startet nicht
 ```bash
-# LaunchAgent Status prüfen
+# LaunchAgent Status prüfen (macOS)
 launchctl list | grep openai-bridge
 
 # Manuell testen
-python3 ~/.openclaw/workspace/scripts/openclaw-openai-bridge/openai-openclaw-bridge-streaming.py
+python3 openai-openclaw-bridge-streaming.py
 ```
 
 ### Connection refused
@@ -220,7 +273,7 @@ lsof -i :9000
 ### Open WebUI zeigt "Unable to get response"
 ```bash
 # Bridge Logs prüfen
-tail -50 ~/.openclaw/workspace/logs/openclaw-openai-bridge-streaming.log
+tail -50 /path/to/openclaw-openai-bridge-streaming.log
 
 # Open WebUI DevTools (F12) → Network Tab
 ```
@@ -236,7 +289,7 @@ launchctl restart com.openclaw.openai-bridge
 ```
 openclaw-openai-bridge/
 ├── openai-openclaw-bridge-streaming.py  # Bridge Script
-├── com.openclaw.openai-bridge.plist     # LaunchAgent
+├── com.openclaw.openai-bridge.plist     # macOS LaunchAgent
 ├── README.md                            # Diese Datei
 └── LICENSE
 ```
@@ -254,34 +307,3 @@ MIT License
 ---
 
 **Built with ❤️ for OpenClaw community**
-
-## 🎯 Verwendungszwecke
-
-- **Open WebUI als Chat UI** mit OpenClaw als LLM
-- **Home Assistant Sprachsteuerung** mit OpenClaw
-- **Multimodale Interaktion** (Text + Bilder)
-- **Persistent Context** über Chat-Sessions hinweg
-- **Universelle AI-Integration** für alle OpenAI-API-Clients
-
-## 📦 Package Contents
-
-- **openai-openclaw-bridge-streaming.py** - Haupt-Script (Python 3.10+)
-- **com.openclaw.openai-bridge.plist** - macOS LaunchAgent for auto-start
-- **README.md** - Setup & Integration Guide
-
-## 🔑 Schlüsselfunktionen
-
-### Streaming (SSE)
-Server-Sent Events für Echtzeit-Antworten in Open WebUI & HA
-
-### Smart Chunking
-Split at word boundaries → no corrupted words like "Insta nz"
-
-### Multimodal
-Upload images → Base64 → vLLM Vision API analysis
-
-### Session Strategy
-Ephemeral sessions per request → no context explosion
-
-### Cross-Platform
-macOS (LaunchAgent) or Linux (systemd service)

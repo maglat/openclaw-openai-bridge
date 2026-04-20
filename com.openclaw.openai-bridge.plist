@@ -3,18 +3,18 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.openclaw.ha-bridge</string>
+    <string>com.openclaw.openai-bridge</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/opt/homebrew/bin/python3</string>
-        <string>/Users/elonseibot/.openclaw/workspace/scripts/openclaw-ha-bridge/openai-openclaw-bridge-streaming.py</string>
+        <string>/path/to/python3</string>
+        <string>/path/to/openai-openclaw-bridge-streaming.py</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/Users/elonseibot/.openclaw/workspace</string>
+    <string>/path/to/openclaw/workspace</string>
     <key>StandardOutPath</key>
-    <string>/Users/elonseibot/.openclaw/workspace/logs/openclaw-ha-bridge-launchd.log</string>
+    <string>/path/to/openclaw/workspace/logs/openai-bridge-launchd.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/elonseibot/.openclaw/workspace/logs/openclaw-ha-bridge-launchd.log</string>
+    <string>/path/to/openclaw/workspace/logs/openai-bridge-launchd.log</string>
     <key>KeepAlive</key>
     <true/>
     <key>RunAtLoad</key>
